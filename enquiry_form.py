@@ -83,38 +83,38 @@ async def sample( image: UploadFile = File(...)):
         image = Image.load_from_file(temp_file_path)
 
         text='''Extract the handwritten values from the following fields in the student enquiry form:
-            1. Name of the Candidate
-            2. Father/Husband Name
-            3. Mother's Name
-            4. Aadhar No
-            5. Email Id
-            6. Gender
-            7. Category
-            8. Religion
-            9. Date of Birth
-            10. Education Level
-            11. Address
-            12. Pin Code
-            13. Contact No
-            14. Batch Time
+            1. Date
+            2. Time
+            3. Name of the Candidate
+            4. Father/Husband Name
+            5. Mother's Name
+            6. Aadhar No
+            7. Contact Number
+            8. Email Id
+            9. Gender
+            10. Date of Birth
+            11. Education Level
+            12. Contact Address
+            13. Pin Code
+            14. Purpose
             Return the values in JSON format.
             Here is an example of how the JSON output should look:
             ```json
             {
+            "Date": "23/08/2024",
+            "Time": "11:53 AM",
             "Name of the Candidate": "Example Name",
             "Father/Husband Name": "Example Father's Name",
             "Mother's Name": "Example Mother's Name",
             "Aadhar No": "1234 5678 9012",
+            "Contact Number": "9876543210",
             "Email Id": "example@example.com",
             "Gender": "Female",
-            "Category": "General",
-            "Religion": "Hindu",
             "Date of Birth": "01/01/2000",
             "Education Level": "Degree",
             "Address": "Example Address",
             "Pin Code": "123456",
-            "Contact No": "9876543210",
-            "Batch Time": "9:00 a.m"
+            "purpose": "Admisssion"
             }'''
         # Prepare contents
         contents = [image, text]
