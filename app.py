@@ -72,7 +72,7 @@ def print_multimodal_prompt(contents: list):
             
             
 @app.post('/hello')
-async def sample(text: str = Form(...), image: UploadFile = File(...)):
+async def sample( image: UploadFile = File(...)):
     # Save the uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(await image.read())
@@ -82,6 +82,40 @@ async def sample(text: str = Form(...), image: UploadFile = File(...)):
         # Load the image from the temporary file
         image = Image.load_from_file(temp_file_path)
 
+        text='''Extract the handwritten values from the following fields in the student enquiry form:
+            1. Name of the Candidate
+            2. Father/Husband Name
+            3. Mother's Name
+            4. Aadhar No
+            5. Email Id
+            6. Gender
+            7. Category
+            8. Religion
+            9. Date of Birth
+            10. Education Level
+            11. Address
+            12. Pin Code
+            13. Contact No
+            14. Batch Time
+            Return the values in JSON format.
+            Here is an example of how the JSON output should look:
+            ```json
+            {
+            "Name of the Candidate": "Example Name",
+            "Father/Husband Name": "Example Father's Name",
+            "Mother's Name": "Example Mother's Name",
+            "Aadhar No": "1234 5678 9012",
+            "Email Id": "example@example.com",
+            "Gender": "Female",
+            "Category": "General",
+            "Religion": "Hindu",
+            "Date of Birth": "01/01/2000",
+            "Education Level": "Degree",
+            "Address": "Example Address",
+            "Pin Code": "123456",
+            "Contact No": "9876543210",
+            "Batch Time": "9:00 a.m"
+            }'''
         # Prepare contents
         contents = [image, text]
 
