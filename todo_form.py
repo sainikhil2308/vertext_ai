@@ -9,6 +9,7 @@ from fastapi import FastAPI, File, UploadFile, Form
 import tempfile
 from vertexai.generative_models import GenerationConfig, GenerativeModel, Image, Part
 import os
+from fastapi.responses import JSONResponse
 
 multimodal_model = GenerativeModel("gemini-1.0-pro-vision")
 
@@ -123,8 +124,13 @@ Return the values in the following JSON format:
         print_multimodal_prompt(contents)
 
         print("\n-------Response--------")
+        
+        response_text=""
         for response in responses:
+            response_text+=response.text
             print(response.text, end="")
+            
+        return JSONResponse(content={"extracted_text":response_text})
     finally:
         # Clean up the temporary file
         os.remove(temp_file_path)
