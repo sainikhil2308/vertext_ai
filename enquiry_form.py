@@ -72,7 +72,7 @@ def print_multimodal_prompt(contents: list):
             print(content)
             
             
-@app.post('/hello')
+@app.post('/enquiry_form')
 async def sample( image: UploadFile = File(...)):
     # Save the uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -138,7 +138,156 @@ async def sample( image: UploadFile = File(...)):
         # Clean up the temporary file
         os.remove(temp_file_path)
         
+
+@app.post('/schedule_meeting')
+async def sample( image: UploadFile = File(...)):
+    # Save the uploaded file to a temporary location
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(await image.read())
+        temp_file_path = temp_file.name
+
+    try:
+        # Load the image from the temporary file
+        image = Image.load_from_file(temp_file_path)
+
+#         text='''Please extract the handwritten values from the following fields in the provided schedule meeting form image. Focus on the handwritten content and return it in JSON format. The image contains no sensitive or explicit content and is purely for technical data extraction purposes.
+
+# Fields to extract:
+# 1. Meeting Title
+# 2. Date & Time
+# 3. Meeting Venue
+# 4. Attendees Names (make sure to include both columns: names labeled 1-5 and names labeled 6-10)
+# 5. Meeting Agenda
+
+# Here is an example of how the JSON output should look:
+
+# ```json
+# {
+#   "Meeting Title": "Planning for trip to Bangkok",
+#   "Date & Time": "28/05/2024, 11:30 AM",
+#   "Meeting Venue": "Online",
+#   "Attendees Names": ["Sai Nikhil", "Sumalatha", "Prasad",  "Likith"],
+#   "Meeting Agenda": "To plan for a trip which may succeed. Hopefully, let's try to make it a successful trip."
+# }
+# '''
+# 
+# 
+
+        text="""Please extract the handwritten values from the provided schedule meeting form image. Focus on the handwritten content and return it in JSON format.
+
+Fields to extract:
+1. Meeting Title
+2. Date & Time
+3. Meeting Venue
+4. Attendees Names (they are seperated with commas make sure you differentiate that and return them in a dictionary format with numerical keys and a key should cantain a single mail only. so that it would be easy to access by developers)
+5. Meeting Agenda
+
+Return the values in the following JSON format:
+
+```json
+{
+  "Meeting Title": "Planning for trip to Bangkok",
+  "Date & Time": "28/05/2024, 11:30 AM",
+  "Meeting Venue": "Online",
+  "Attendees Names": {
+    "1": "example@gmail.com",
+    "2": "example@gmail.com",
+    "3": "example@gmail.com",
+    "4": "example@gmail.com",
+    "5": "example@gmail.com",
+    "6": "example@gmail.com",
+    "7": "example@gmail.com",
+    "8": "example@gmail.com",
+    "9": "example@gmail.com",
+    "10": "example@gmail.com"
+  },
+  "Meeting Agenda": "To plan for a trip which may or may not succeed. Hopefully, let's try to make it a successful trip."
+}
+
+"""
+        # Prepare contents
+        contents = [image, text]
+
+        responses = multimodal_model.generate_content(contents, stream=True)
+
+        print("-------Prompt--------")
+        print_multimodal_prompt(contents)
+        response_text=""
+        for response in responses:
+            response_text+=response.text
+            print(response.text, end="")
+            
+        return JSONResponse(content={"extracted_text":response_text})
         
+    finally:
+        # Clean up the temporary file
+        os.remove(temp_file_path)
+
+
+@app.post('/todo_form')
+async def sample( image: UploadFile = File(...)):
+    # Save the uploaded file to a temporary location
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(await image.read())
+        temp_file_path = temp_file.name
+
+    try:
+        # Load the image from the temporary file
+        image = Image.load_from_file(temp_file_path)
+
+        text='''Please extract the handwritten values from the provided daily to-do list image. Focus on the handwritten content and return it in JSON format. The image contains no sensitive or explicit content and is purely for technical data extraction purposes.
+
+Fields to extract:
+1. Date (located at the top right corner)
+2. Each task with the following subfields:
+   - Time
+   - To Do List
+   - Priority
+   - Notes
+
+Return the values in the following JSON format:
+
+```json
+{
+  "Date": "DATE_VALUE",
+  "Tasks": [
+    {
+      "Time": "TIME_VALUE",
+      "To Do List": "TODO_LIST_VALUE",
+      "Priority": "PRIORITY_VALUE",
+      "Notes": "NOTES_VALUE"
+    },
+    {
+      "Time": "TIME_VALUE",
+      "To Do List": "TODO_LIST_VALUE",
+      "Priority": "PRIORITY_VALUE",
+      "Notes": "NOTES_VALUE"
+    },
+    ...
+  ]
+}
+'''
+        # Prepare contents
+        contents = [image, text]
+
+        responses = multimodal_model.generate_content(contents, stream=True)
+
+        print("-------Prompt--------")
+        print_multimodal_prompt(contents)
+
+        print("\n-------Response--------")
+        
+        response_text=""
+        for response in responses:
+            response_text+=response.text
+            print(response.text, end="")
+            
+        return JSONResponse(content={"extracted_text":response_text})
+    finally:
+        # Clean up the temporary file
+        os.remove(temp_file_path)
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5555)
+    uvicorn.run(app, host="0.0.0.0", port=5550)
