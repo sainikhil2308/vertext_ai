@@ -15,7 +15,7 @@ multimodal_model = GenerativeModel("gemini-1.0-pro-vision")
 
 app=FastAPI()
 
-PROJECT_ID = " vertexapi-424608"  # @param {type:"string"}
+PROJECT_ID = "vertexapi-424608"  # @param {type:"string"}
 LOCATION = "asia-south1"  # @param {type:"string"}
 
 vertexai.init(project=PROJECT_ID, location=LOCATION)
