@@ -4,7 +4,7 @@ import urllib.request
 import vertexai
 import fitz 
 from docx import Document
-
+from PIL import ImageDraw, ImageFont
 import IPython.display
 from PIL import Image as PIL_Image
 from PIL import ImageOps as PIL_ImageOps
@@ -57,12 +57,38 @@ def convert_pdf_to_images(pdf_path: str) -> typing.List[PIL_Image.Image]:
             images.append(img)
     return images
 
+def load_txt_as_text(txt_path: str) -> str:
+    with open(txt_path, 'r') as file:
+        return file.read()
+
 def load_docx_as_text(docx_path: str) -> str:
     doc = Document(docx_path)
     full_text = []
     for para in doc.paragraphs:
         full_text.append(para.text)
     return "\n".join(full_text)
+
+
+def text_to_image(text: str) -> PIL_Image.Image:
+    # Define the size of the image canvas
+    font_size = 20
+    font = ImageFont.load_default()
+    lines = text.split("\n")
+    max_line_length = max(len(line) for line in lines)
+    image_width = max_line_length * font_size // 2
+    image_height = len(lines) * font_size
+
+    # Create a new image with white background
+    image = PIL_Image.new("RGB", (image_width, image_height), "white")
+    draw = ImageDraw.Draw(image)
+
+    # Draw the text onto the image
+    y_text = 0
+    for line in lines:
+        draw.text((0, y_text), line, font=font, fill="black")
+        y_text += font_size
+
+    return image
 
 
 def load_image_from_url(image_url: str) -> Image:
@@ -336,6 +362,9 @@ async def process_form(file: UploadFile = File(...), prompt: str = Form(...)):
         elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             docx_text = load_docx_as_text(temp_file_path)
             contents = [prompt + "\n" + docx_text]  # Treat the DOCX text as a part of the content
+        elif file.content_type == "text/plain":
+            txt_text = load_txt_as_text(temp_file_path)
+            contents = [prompt + "\n" + txt_text]
         elif "image" in file.content_type:
             pil_image = PIL_Image.open(temp_file_path)
             image_objects = [Image.from_bytes(pil_image_to_bytes(pil_image))]
@@ -365,6 +394,57 @@ async def process_form(file: UploadFile = File(...), prompt: str = Form(...)):
     finally:
         # Clean up the temporary file
         os.remove(temp_file_path)
+        
+
+@app.post('/chat_assisstant_only_language')
+async def process_form(file: UploadFile = File(None), prompt: str = Form(...)):
+    contents = [prompt]  # Initialize contents with prompt
+
+    if file is not None:
+        # Save the uploaded file to a temporary location
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(await file.read())
+            temp_file_path = temp_file.name
+
+        try:
+            # Determine file type and convert if necessary
+            if file.content_type == "application/pdf":
+                images = convert_pdf_to_images(temp_file_path)
+                image_objects = [Image.from_bytes(pil_image_to_bytes(img)) for img in images]
+                contents = image_objects + [prompt]
+            elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                docx_text = load_docx_as_text(temp_file_path)
+                contents = [prompt + "\n" + docx_text]  # Treat the DOCX text as a part of the content
+            elif "image" in file.content_type:
+                pil_image = PIL_Image.open(temp_file_path)
+                image_objects = [Image.from_bytes(pil_image_to_bytes(pil_image))]
+                contents = image_objects + [prompt]
+            else:
+                return JSONResponse(content={"error": "Unsupported file type"}, status_code=400)
+        finally:
+            # Clean up the temporary file
+            os.remove(temp_file_path)
+    
+    # Prepare contents
+    responses = multimodal_model.generate_content(contents, stream=True)
+
+    print("-------Prompt--------")
+    for content in contents:
+        if isinstance(content, Image):
+            display_images([content])
+        else:
+            print(content)
+
+    print("\n-------Response--------")
+    response_text = ""
+    for response in responses:
+        response_text += response.text
+        print(response.text, end="")
+
+    return JSONResponse(content={"response": response_text})
+            
+        
+
 
 
 if __name__ == "__main__":
