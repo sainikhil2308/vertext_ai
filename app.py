@@ -2,6 +2,9 @@ import http.client
 import typing
 import urllib.request
 import vertexai
+import fitz 
+from docx import Document
+
 import IPython.display
 from PIL import Image as PIL_Image
 from PIL import ImageOps as PIL_ImageOps
@@ -44,9 +47,36 @@ def get_image_bytes_from_url(image_url: str) -> bytes:
     return image_bytes
 
 
+def convert_pdf_to_images(pdf_path: str) -> typing.List[PIL_Image.Image]:
+    images = []
+    with fitz.open(pdf_path) as doc:
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
+            pix = page.get_pixmap()
+            img = PIL_Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            images.append(img)
+    return images
+
+def load_docx_as_text(docx_path: str) -> str:
+    doc = Document(docx_path)
+    full_text = []
+    for para in doc.paragraphs:
+        full_text.append(para.text)
+    return "\n".join(full_text)
+
+
 def load_image_from_url(image_url: str) -> Image:
     image_bytes = get_image_bytes_from_url(image_url)
     return Image.from_bytes(image_bytes)
+
+def pil_image_to_bytes(pil_image: PIL_Image.Image) -> bytes:
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
+        pil_image.save(temp_file, format='PNG')
+        temp_file_path = temp_file.name
+    with open(temp_file_path, 'rb') as f:
+        image_bytes = f.read()
+    os.remove(temp_file_path)
+    return image_bytes
 
 
 def get_url_from_gcs(gcs_uri: str) -> str:
@@ -80,6 +110,7 @@ async def sample( image: UploadFile = File(...)):
         temp_file_path = temp_file.name
 
     try:
+        
         # Load the image from the temporary file
         image = Image.load_from_file(temp_file_path)
 
@@ -283,6 +314,54 @@ Return the values in the following JSON format:
             print(response.text, end="")
             
         return JSONResponse(content={"extracted_text":response_text})
+    finally:
+        # Clean up the temporary file
+        os.remove(temp_file_path)
+        
+        
+@app.post('/chat_assisstant')
+async def process_form(file: UploadFile = File(...), prompt: str = Form(...)):
+    # Save the uploaded file to a temporary location
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(await file.read())
+        temp_file_path = temp_file.name
+
+    try:
+        contents=[]
+        # Determine file type and convert if necessary
+        if file.content_type == "application/pdf":
+            images = convert_pdf_to_images(temp_file_path)
+            image_objects = [Image.from_bytes(pil_image_to_bytes(img)) for img in images]
+            contents = image_objects + [prompt]
+        elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            docx_text = load_docx_as_text(temp_file_path)
+            contents = [prompt + "\n" + docx_text]  # Treat the DOCX text as a part of the content
+        elif "image" in file.content_type:
+            pil_image = PIL_Image.open(temp_file_path)
+            image_objects = [Image.from_bytes(pil_image_to_bytes(pil_image))]
+            contents = image_objects + [prompt]
+        else:
+            return JSONResponse(content={"error": "Unsupported file type"}, status_code=400)
+
+        # Prepare contents
+        # contents = image_objects + [prompt]
+
+        responses = multimodal_model.generate_content(contents, stream=True)
+
+        print("-------Prompt--------")
+        for content in contents:
+            if isinstance(content, Image):
+                display_images([content])
+            else:
+                print(content)
+
+        print("\n-------Response--------")
+        response_text = ""
+        for response in responses:
+            response_text += response.text
+            print(response.text, end="")
+
+        return JSONResponse(content={"response": response_text})
     finally:
         # Clean up the temporary file
         os.remove(temp_file_path)
